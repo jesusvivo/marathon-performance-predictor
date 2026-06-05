@@ -1,0 +1,59 @@
+[project]
+name = "marathon-performance-predictor"
+version = "0.1.0"
+description = "Personal multi-distance race predictor on Garmin training data, served end-to-end."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyarrow>=16.0",
+    "scipy>=1.13",
+    "scikit-learn>=1.5",
+    "lightgbm>=4.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pandas-stubs>=2.2",
+    "jupyterlab>=4.5.8",
+    "ipykernel>=7.2.0",
+    "matplotlib>=3.10.9",
+]
+serving = [
+    "bentoml>=1.3",
+    "onnx>=1.16",
+    "onnxruntime>=1.18",
+    "skl2onnx>=1.17",
+    "onnxmltools>=1.12",
+]
+feast = [
+    "feast>=0.40",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/marathon"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "PD"]
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["marathon"]
+mypy_path = "src"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

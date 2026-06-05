@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data: the Garmin export is personal and large, keep it out of git
+/data/
+
+# Generated artifacts
+/artifacts/
+*.parquet
+*.onnx
+*.db
+*.sqlite
+
+# Feast generated registry/online store
+/feature_repo/data/
+
+# Local env
+.env
