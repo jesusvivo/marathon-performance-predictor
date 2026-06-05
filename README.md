@@ -12,6 +12,18 @@ My existing portfolio projects all stop at the notebook. This one is the deploym
 live service with a feature store, online and batch inference, monitoring, and a reproducible
 ingestion path for new training data.
 
+## Dataset
+
+The training data is my own Garmin Connect GDPR export: a multisport activity history (running,
+cycling, swimming, plus strength and other cardio) starting in **May 2024**. The history depth
+matters more than the raw count: CTL/ATL fitness state is an exponentially-weighted load, so the
+first ~42 days are a warm-up before the long-term (42-day) average is trustworthy. Only **running**
+efforts are prediction labels; the other disciplines feed systemic fatigue.
+
+The set grows with every export, so the live counts (activities ingested, date span, weeks to race)
+are not pinned here. They are computed by the pipeline (`python -m marathon.parse`) and surfaced on
+the monitoring dashboard, where the countdown to the **Feb 2027 debut marathon** is the through-line.
+
 ## Requirements clarification (decided before building)
 
 The scope was pinned up front rather than assumed:
