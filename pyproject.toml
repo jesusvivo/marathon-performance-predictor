@@ -43,6 +43,7 @@ packages = ["src/marathon"]
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "PD"]

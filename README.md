@@ -40,7 +40,33 @@ The scope was pinned up front rather than assumed:
 
 ## Architecture
 
-(To be documented as the layers land.)
+Code layout as it stands:
+
+```
+src/marathon/
+  parse/         # Garmin summarizedActivities.json -> tidy multisport activity frame
+  features/
+    load.py      # per-activity training load -> gap-free daily load series
+    fitness.py   # daily load -> CTL (fitness) / ATL (fatigue) / TSB (form)
+    running.py   # running daily volume, rolling load, pace, efficiency, long-run recency, VO2max
+    wellness.py  # sleep and training-readiness daily features
+    efforts.py   # velocity-duration effort points + best-effort frontier (model anchors)
+    garmin.py    # Garmin's acute/chronic load (validation ref) + race predictions (baseline)
+    build.py     # assemble the daily feature matrix from the above
+scripts/
+  build_features.py     # write daily_features.parquet + effort_points.parquet
+  validate_fitness.py   # correlate recomputed CTL/ATL against Garmin's series
+docs/
+  fitness-model.md      # the sports science: training load, CTL/ATL/TSB, calibration
+  features.md           # every column in the daily feature matrix
+```
+
+The feature pipeline is a chain of pure functions: `load_export` -> `daily_load` / `running_features`
+/ `daily_wellness` -> `daily_features`, each independently tested. The serving layers (ONNX export,
+Feast feature store, BentoML service, Cloud Run deploy) follow the build phases in the project plan.
+
+See [docs/features.md](docs/features.md) for the feature columns and
+[docs/fitness-model.md](docs/fitness-model.md) for the physiology and Garmin calibration.
 
 ## FinOps
 
@@ -59,3 +85,14 @@ idles at ~$0.
   full export: 581 activities (272 run / 139 strength / 71 bike / 52 swim / 32 cardio), 6 races,
   May 2024 to Jun 2026. `python -m marathon.parse <export.json> <out.parquet>`. 11 unit tests on
   hand-checked fixtures.
+- **Phase 3 (features, in progress)**: daily multisport training load (`features/load`) and the
+  CTL/ATL/TSB fitness state (`features/fitness`) via impulse-response EWMA. Calibrated CTL against
+  Garmin's own chronic load by window sweep (`scripts/validate_fitness.py`): a 28-day CTL matches
+  Garmin's documented chronic window and lifts correlation from 0.870 (42d) to 0.899; ATL held at
+  7 days (r 0.829). Decision rule revised down from the original r >= 0.95 to ~0.90, since Garmin's
+  internal per-activity load is not fully observable; documented in docs/fitness-model.md.
+  Added running features (`features/running`: rolling 7/28d volume, 28d pace, efficiency factor,
+  days-since-long-run, VO2max), wellness (`features/wellness`: sleep, readiness, HRV), velocity-
+  duration effort anchors + best-effort frontier (`features/efforts`), and the Garmin race-prediction
+  baseline (`features/garmin`). `features/build` assembles a 754-day x 16 feature matrix
+  (`scripts/build_features.py`); columns documented in docs/features.md. 32 unit tests.
