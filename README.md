@@ -85,7 +85,7 @@ idles at ~$0.
   full export: 581 activities (272 run / 139 strength / 71 bike / 52 swim / 32 cardio), 6 races,
   May 2024 to Jun 2026. `python -m marathon.parse <export.json> <out.parquet>`. 11 unit tests on
   hand-checked fixtures.
-- **Phase 3 (features, in progress)**: daily multisport training load (`features/load`) and the
+- **Phase 3 (features)**: daily multisport training load (`features/load`) and the
   CTL/ATL/TSB fitness state (`features/fitness`) via impulse-response EWMA. Calibrated CTL against
   Garmin's own chronic load by window sweep (`scripts/validate_fitness.py`): a 28-day CTL matches
   Garmin's documented chronic window and lifts correlation from 0.870 (42d) to 0.899; ATL held at
@@ -96,3 +96,12 @@ idles at ~$0.
   duration effort anchors + best-effort frontier (`features/efforts`), and the Garmin race-prediction
   baseline (`features/garmin`). `features/build` assembles a 754-day x 16 feature matrix
   (`scripts/build_features.py`); columns documented in docs/features.md. 32 unit tests.
+- **Phase 4 (baseline + eval harness)**: two velocity-duration race-time curves, Riegel (log-log
+  least-squares, T = a*D^b) and Critical Speed (linear, distance = D' + CS*time), each with fit +
+  predict (`model/curve`). Eval harness (`model/evaluate`): per-distance MAPE/RMSPE, time-ordered
+  holdout (each race predicted only from efforts strictly before it, leakage-tested), and Garmin's
+  daily race predictions as the baseline. On the 4 real races (`scripts/evaluate_models.py`): Riegel
+  MAPE 0.113, CS 0.117, Garmin 0.034. Garmin beats both simple models; both run ~11% slow because the
+  frontier is fit on whole-activity average speeds (mostly easy pace), so the curve sits too slow.
+  Riegel edges CS, so it is the baseline to beat. Garmin's MAPE is over 3 races (the 20K has no
+  standard Garmin distance); the marathon stays unvalidated until the Feb 2027 race. 47 unit tests.
