@@ -19,3 +19,20 @@ def fit_riegel(points: pd.DataFrame) -> tuple[float, float]:
     slope, intercept = np.polyfit(log_d, log_t, 1)
 
     return float(np.exp(intercept)), float(slope)
+
+def fit_cs(points: pd.DataFrame) -> tuple[float, float]:
+    """Critical-speed fit distance = D' + CS*time; returns (cs, d_prime)."""
+    d = points["distance_km"] * 1000
+    t = points["duration_s"]
+
+    slope, intercept = np.polyfit(d, t, 1)
+
+    cs = 1 / slope
+    d_prime = intercept * -cs
+
+    return float(cs), float(d_prime)
+
+def predict_cs(distance_km: float, cs: float, d_prime: float) -> float:
+    """Critical-speed model: time in seconds for a distance."""
+
+    return float(((distance_km * 1000) - d_prime) / cs)
