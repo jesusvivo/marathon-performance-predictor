@@ -105,3 +105,9 @@ idles at ~$0.
   frontier is fit on whole-activity average speeds (mostly easy pace), so the curve sits too slow.
   Riegel edges CS, so it is the baseline to beat. Garmin's MAPE is over 3 races (the 20K has no
   standard Garmin distance); the marathon stays unvalidated until the Feb 2027 race. 47 unit tests.
+  Investigated two levers to cut the ~11% slow bias; both are unsupported by the data and were not
+  pursued. (1) Densifying the frontier with within-run splits: the export's `splits`/`splitSummaries`
+  are heterogeneous category buckets, not clean per-km bests. (2) Fitting on hard efforts only: at the
+  Garmin-estimated lactate-threshold HR (172 bpm) just 6 efforts qualify and 4 are the races
+  themselves, leaving nothing for a leakage-safe fit. The slow bias is a fundamental N=1 limitation
+  (no maximal long-duration efforts), so the baseline stands and the contribution is the engineering.
