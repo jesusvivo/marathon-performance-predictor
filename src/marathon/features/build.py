@@ -23,4 +23,6 @@ def daily_features(
     fitness = fitness_state(daily_load(activities))
     running = running_features(activities)
     wellness = daily_wellness(wellness_dir, metrics_dir)
-    return fitness.join(running, how="left").join(wellness, how="left")
+    final = fitness.join(running, how="left").join(wellness, how="left")
+    final["athlete_id"] = 1
+    return final

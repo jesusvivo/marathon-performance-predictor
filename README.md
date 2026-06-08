@@ -77,37 +77,20 @@ idles at ~$0.
 
 ## Experiment log
 
-- **Phase 1 (scaffold)**: uv project pinned to Python 3.11 (Feast/BentoML compatibility), ruff +
-  mypy (strict) + pytest, `src/marathon` layout, staged dependency groups (dev / serving / feast).
-- **Phase 2 (parser)**: `marathon.parse` turns `summarizedActivities.json` into a tidy 35-column
-  multisport frame, units normalized (distance cm, duration/HR-zones ms, speed (m/s)/10, elevation
-  and stride cm), discipline-tagged, deduped by `activityId` (latest start wins). Verified on the
-  full export: 581 activities (272 run / 139 strength / 71 bike / 52 swim / 32 cardio), 6 races,
-  May 2024 to Jun 2026. `python -m marathon.parse <export.json> <out.parquet>`. 11 unit tests on
-  hand-checked fixtures.
-- **Phase 3 (features)**: daily multisport training load (`features/load`) and the
-  CTL/ATL/TSB fitness state (`features/fitness`) via impulse-response EWMA. Calibrated CTL against
-  Garmin's own chronic load by window sweep (`scripts/validate_fitness.py`): a 28-day CTL matches
-  Garmin's documented chronic window and lifts correlation from 0.870 (42d) to 0.899; ATL held at
-  7 days (r 0.829). Decision rule revised down from the original r >= 0.95 to ~0.90, since Garmin's
-  internal per-activity load is not fully observable; documented in docs/fitness-model.md.
-  Added running features (`features/running`: rolling 7/28d volume, 28d pace, efficiency factor,
-  days-since-long-run, VO2max), wellness (`features/wellness`: sleep, readiness, HRV), velocity-
-  duration effort anchors + best-effort frontier (`features/efforts`), and the Garmin race-prediction
-  baseline (`features/garmin`). `features/build` assembles a 754-day x 16 feature matrix
-  (`scripts/build_features.py`); columns documented in docs/features.md. 32 unit tests.
-- **Phase 4 (baseline + eval harness)**: two velocity-duration race-time curves, Riegel (log-log
-  least-squares, T = a*D^b) and Critical Speed (linear, distance = D' + CS*time), each with fit +
-  predict (`model/curve`). Eval harness (`model/evaluate`): per-distance MAPE/RMSPE, time-ordered
-  holdout (each race predicted only from efforts strictly before it, leakage-tested), and Garmin's
-  daily race predictions as the baseline. On the 4 real races (`scripts/evaluate_models.py`): Riegel
-  MAPE 0.113, CS 0.117, Garmin 0.034. Garmin beats both simple models; both run ~11% slow because the
-  frontier is fit on whole-activity average speeds (mostly easy pace), so the curve sits too slow.
-  Riegel edges CS, so it is the baseline to beat. Garmin's MAPE is over 3 races (the 20K has no
-  standard Garmin distance); the marathon stays unvalidated until the Feb 2027 race. 47 unit tests.
-  Investigated two levers to cut the ~11% slow bias; both are unsupported by the data and were not
-  pursued. (1) Densifying the frontier with within-run splits: the export's `splits`/`splitSummaries`
-  are heterogeneous category buckets, not clean per-km bests. (2) Fitting on hard efforts only: at the
-  Garmin-estimated lactate-threshold HR (172 bpm) just 6 efforts qualify and 4 are the races
-  themselves, leaving nothing for a leakage-safe fit. The slow bias is a fundamental N=1 limitation
-  (no maximal long-duration efforts), so the baseline stands and the contribution is the engineering.
+- **Phase 1 (scaffold)**: uv project on Python 3.11 (Feast/BentoML compat), ruff + mypy-strict +
+  pytest, `src/marathon` layout, dependency groups dev / serving / feast.
+- **Phase 2 (parser)**: `summarizedActivities.json` to a tidy multisport activity frame (`marathon.parse`).
+  - Units normalized (distance cm, duration/HR-zones ms, speed (m/s)/10, elevation/stride cm), discipline-tagged, deduped by `activityId`.
+  - Verified on the full export: 581 activities (272 run / 139 strength / 71 bike / 52 swim / 32 cardio), 6 races, May 2024 to Jun 2026. 11 tests.
+- **Phase 3 (features)**: daily fitness state + running/wellness/effort features, assembled into a 754 x 16 matrix (`features/`, `scripts/build_features.py`).
+  - CTL/ATL/TSB via impulse-response EWMA; **CTL calibrated to Garmin's chronic load** by window sweep: 28-day CTL gives r 0.899 (vs 0.870 at 42d), ATL 7d gives r 0.829.
+  - Decision rule revised r >= 0.95 to ~0.90 (Garmin's per-activity load isn't observable). See docs/fitness-model.md / docs/features.md. 32 tests.
+- **Phase 4 (baseline + eval harness)**: Riegel + Critical Speed velocity-duration curves, scored against Garmin with a leakage-safe holdout (`model/`, `scripts/evaluate_models.py`).
+  - **Result on 4 races: Garmin wins (MAPE 0.034) vs Riegel 0.113 / CS 0.117.** Both curves run ~11% slow (fit on whole-run average speeds). Marathon unvalidated until Feb 2027. 47 tests.
+  - Two improvement levers investigated and rejected as unsupported by the data: within-run splits (heterogeneous, no clean per-km bests) and hard-efforts-only (at LT 172 bpm only 6 efforts qualify, 4 are races). The slow bias is a fundamental N=1 limit (no maximal long efforts).
+- **Phase 5 (ONNX export)**: Riegel reframed as a sklearn log-linear regression and exported to ONNX (`model/export`, `scripts/export_onnx.py`).
+  - `ln T = ln a + b*ln D`, so it converts via skl2onnx; sklearn coefficients reproduce the polyfit `a`/`b` exactly.
+  - **Parity: ONNX runtime matches the trained model to ~3.5e-7** (float32 vs float64). Test guarded by `pytest.importorskip`. Artifact `artifacts/riegel.onnx`.
+- **Phase 6 (Feast feature store)**: `daily_features` registered in Feast with offline (parquet) + online (SQLite) stores (`feature_repo/`, `scripts/feast_demo.py`).
+  - `athlete` entity, `FileSource` on `date`, `daily_fitness` view over the 16 features. SQLite online store (FinOps choice over managed Redis). `feast apply` + `materialize-incremental`.
+  - **Both retrieval paths verified**: `get_online_features` (latest state, request-time serving) and `get_historical_features` (leakage-safe point-in-time, the training-set builder). Registry/online DB gitignored.
