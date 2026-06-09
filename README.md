@@ -4,7 +4,7 @@ A personal multi-distance race predictor (5K / 10K / Half / Marathon) built on m
 training data and served end-to-end: BentoML + ONNX behind a Feast feature store, deployed to
 GCP Cloud Run with scale-to-zero. The headline output is a marathon finish-time projection with
 an uncertainty band, tracked across an 8-month training block and validated against my actual
-race in February 2027.
+marathon debut in February 2027.
 
 ## Why this project
 
