@@ -59,6 +59,10 @@ warn_unused_ignores = true
 module = ["sklearn.*", "skl2onnx.*", "onnxruntime.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["marathon.service"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

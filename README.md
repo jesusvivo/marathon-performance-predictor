@@ -53,20 +53,44 @@ src/marathon/
     efforts.py   # velocity-duration effort points + best-effort frontier (model anchors)
     garmin.py    # Garmin's acute/chronic load (validation ref) + race predictions (baseline)
     build.py     # assemble the daily feature matrix from the above
+  model/
+    curve.py     # Riegel + Critical Speed velocity-duration fits (fit + predict)
+    evaluate.py  # per-distance MAPE/RMSPE, leakage-safe holdout, Garmin baseline
+    export.py    # Riegel as sklearn log-linear regression -> ONNX
+  service.py     # BentoML service: ONNX predictions + Feast online features
+feature_repo/    # Feast: entity, feature views, offline (parquet) + online (sqlite) stores
 scripts/
   build_features.py     # write daily_features.parquet + effort_points.parquet
   validate_fitness.py   # correlate recomputed CTL/ATL against Garmin's series
+  evaluate_models.py    # compare Riegel/CS/Garmin per-distance MAPE
+  export_onnx.py        # write artifacts/riegel.onnx + parity check
+  feast_demo.py         # online + point-in-time historical retrieval
 docs/
   fitness-model.md      # the sports science: training load, CTL/ATL/TSB, calibration
   features.md           # every column in the daily feature matrix
 ```
 
 The feature pipeline is a chain of pure functions: `load_export` -> `daily_load` / `running_features`
-/ `daily_wellness` -> `daily_features`, each independently tested. The serving layers (ONNX export,
-Feast feature store, BentoML service, Cloud Run deploy) follow the build phases in the project plan.
+/ `daily_wellness` -> `daily_features`, each independently tested. The serving layers, ONNX export,
+the Feast feature store, and a BentoML service, are in place; Cloud Run deployment is the remaining
+build phase.
 
 See [docs/features.md](docs/features.md) for the feature columns and
 [docs/fitness-model.md](docs/fitness-model.md) for the physiology and Garmin calibration.
+
+## Running the service
+
+```
+uv run --group serving --group feast bentoml serve marathon.service:RacePredictor
+```
+Then predict over HTTP (served on `localhost:3000`, with a Swagger UI at the root, Prometheus
+metrics at `/metrics`, and health at `/healthz`):
+```
+curl -X POST localhost:3000/predict_marathon -H "Content-Type: application/json" -d '{}'
+curl -X POST localhost:3000/predict_race -H "Content-Type: application/json" -d '{"distance_km": 10}'
+```
+Each response carries the predicted finish time plus the athlete's current fitness state, looked up
+from Feast's online store at request time.
 
 ## FinOps
 
@@ -94,3 +118,6 @@ idles at ~$0.
 - **Phase 6 (Feast feature store)**: `daily_features` registered in Feast with offline (parquet) + online (SQLite) stores (`feature_repo/`, `scripts/feast_demo.py`).
   - `athlete` entity, `FileSource` on `date`, `daily_fitness` view over the 16 features. SQLite online store (FinOps choice over managed Redis). `feast apply` + `materialize-incremental`.
   - **Both retrieval paths verified**: `get_online_features` (latest state, request-time serving) and `get_historical_features` (leakage-safe point-in-time, the training-set builder). Registry/online DB gitignored.
+- **Phase 7 (BentoML service)**: a single live service (`marathon.service:RacePredictor`) that wires ONNX + Feast together over HTTP.
+  - `__init__` loads the ONNX session and the Feast store once at startup; endpoints `predict_race` / `predict_marathon` run inference and attach the current fitness state from Feast's online store. Shared logic in an undecorated `_predict` helper (BentoML endpoints must not call each other).
+  - Free `/metrics` (Prometheus), `/healthz`, and Swagger UI. Verified by HTTP smoke test (a 42.195 km request returns a finish-time prediction plus live ctl/atl/tsb/readiness); no unit test, since the service needs the ONNX artifact and a materialized online store (integration territory, re-verified when containerized).
