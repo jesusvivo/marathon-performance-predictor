@@ -1,0 +1,15 @@
+service: "marathon.service:RacePredictor"
+include:
+  - "src/marathon/"
+  - "artifacts/riegel.onnx"
+  - "feature_repo/"
+python:
+  packages:
+    - bentoml
+    - numpy
+    - pandas
+    - onnxruntime
+    - feast
+envs:
+  - name: PYTHONPATH
+    value: /home/bentoml/bento/src/src

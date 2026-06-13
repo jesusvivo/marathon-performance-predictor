@@ -12,7 +12,8 @@ class RacePredictor:
     def __init__(self) -> None:
         # runs once at startup: build the ONNX session ONE time and reuse it
         self.session = rt.InferenceSession(
-            "artifacts/riegel.onnx", providers=["CPUExecutionProvider"]
+            str(Path(__file__).parent.parent.parent / "artifacts" / "riegel.onnx"),
+            providers=["CPUExecutionProvider"],
         )
         self.input_name = self.session.get_inputs()[0].name
         feature_repo_path = str(Path(__file__).parent.parent.parent / "feature_repo")
