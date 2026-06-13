@@ -90,14 +90,10 @@ See [docs/features.md](docs/features.md) for the feature columns and
 ```
 uv run --group serving --group feast bentoml serve marathon.service:RacePredictor
 ```
-Then predict over HTTP (served on `localhost:3000`, with a Swagger UI at the root, Prometheus
-metrics at `/metrics`, and health at `/healthz`):
-```
-curl -X POST localhost:3000/predict_marathon -H "Content-Type: application/json" -d '{}'
-curl -X POST localhost:3000/predict_race -H "Content-Type: application/json" -d '{"distance_km": 10}'
-```
-Each response carries the predicted finish time plus the athlete's current fitness state, looked up
-from Feast's online store at request time.
+Open `localhost:3000` for the interactive Swagger UI (the full API contract: endpoints, request/
+response schemas, validation), with Prometheus metrics at `/metrics` and health at `/healthz`. Each
+prediction returns the finish time plus the athlete's current fitness state, looked up from Feast's
+online store at request time. A live example is in the demo curl at the top of this README.
 
 ## FinOps
 

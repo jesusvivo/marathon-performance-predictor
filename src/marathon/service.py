@@ -1,10 +1,24 @@
 from pathlib import Path
-from typing import Any
+from typing import Annotated
 
 import bentoml
 import numpy as np
 import onnxruntime as rt
 from feast import FeatureStore
+from pydantic import BaseModel, Field
+
+
+class FitnessState(BaseModel):
+    ctl: float
+    atl: float
+    tsb: float
+    readiness_score: float
+
+
+class RacePrediction(BaseModel):
+    distance_km: float
+    predicted_seconds: float
+    fitness_state: FitnessState
 
 
 @bentoml.service(name="race_predictor")
@@ -19,7 +33,7 @@ class RacePredictor:
         feature_repo_path = str(Path(__file__).parent.parent.parent / "feature_repo")
         self.store = FeatureStore(repo_path=feature_repo_path)
 
-    def _predict(self, distance_km: float) -> dict[str, Any]:
+    def _predict(self, distance_km: float) -> RacePrediction:
         log_d = np.array([[np.log(distance_km)]], dtype=np.float32)
         log_t = self.session.run(None, {self.input_name: log_d})[0]
         seconds = float(np.exp(log_t.ravel()[0]))
@@ -34,21 +48,23 @@ class RacePredictor:
             entity_rows=[{"athlete_id": 1}],
         ).to_dict()
 
-        return {
-            "distance_km": distance_km,
-            "predicted_seconds": round(seconds, 1),
-            "fitness_state": {
-                "ctl": online_features["ctl"][0],
-                "atl": online_features["atl"][0],
-                "tsb": online_features["tsb"][0],
-                "readiness_score": online_features["readiness_score"][0],
-            },
-        }
+        return RacePrediction(
+            distance_km=distance_km,
+            predicted_seconds=round(seconds, 1),
+            fitness_state=FitnessState(
+                ctl=online_features["ctl"][0],
+                atl=online_features["atl"][0],
+                tsb=online_features["tsb"][0],
+                readiness_score=online_features["readiness_score"][0],
+            ),
+        )
 
     @bentoml.api
-    def predict_race(self, distance_km: float = 10.0) -> dict[str, Any]:
+    def predict_race(
+        self, distance_km: Annotated[float, Field(gt=0, le=100)] = 10.0
+    ) -> RacePrediction:
         return self._predict(distance_km)
 
     @bentoml.api
-    def predict_marathon(self) -> dict[str, Any]:
+    def predict_marathon(self) -> RacePrediction:
         return self._predict(42.195)
