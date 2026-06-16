@@ -2,9 +2,9 @@
 
 A personal multi-distance race predictor (5K / 10K / Half / Marathon) built on my own Garmin
 training data and served end-to-end: BentoML + ONNX behind a Feast feature store, deployed to
-GCP Cloud Run with scale-to-zero. The headline output is a marathon finish-time projection with
-an uncertainty band, tracked across an 8-month training block and validated against my actual
-marathon debut in February 2027.
+GCP Cloud Run with scale-to-zero. The headline output is a marathon finish-time projection,
+tracked across an 8-month training block and validated against my actual marathon debut in
+February 2027.
 
 **Live demo:** https://race-predictor-738965554321.europe-west1.run.app (open in a browser for the
 interactive Swagger UI). It is scale-to-zero, so the first request cold-starts in a few seconds:
@@ -111,6 +111,10 @@ dataset with no maximal long-duration efforts. So the headline isn't beating a t
 model, it's the **end-to-end engineering**: a calibrated feature pipeline, a leakage-safe eval, and
 the model served live (ONNX + Feast + BentoML on Cloud Run). The real-marathon validation is the
 Feb 2027 race.
+
+Two pieces of the original target were dropped as unsupported by the N=1 data and logged as such:
+conditioning the curve on fitness state, and prediction intervals, so the deployed model returns a
+point estimate, not an uncertainty band. See the build log for the reasoning.
 
 ## Build log
 
